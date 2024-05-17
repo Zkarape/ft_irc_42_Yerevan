@@ -1,0 +1,18 @@
+function main():
+    server_socket = create_socket()
+    bind_socket(server_socket, SERVER_PORT)
+    listen_socket(server_socket)
+    
+    clients = []  # List to keep track of connected clients
+    channels = {}  # Dictionary to manage channels and their members
+
+    while true:
+        ready_to_read = select([server_socket] + clients)
+        
+        for socket in ready_to_read:
+            if socket == server_socket:
+                client_socket, client_address = accept_connection(server_socket)
+                clients.append(client_socket)
+                initialize_client_session(client_socket)
+            else:
+                handle_client_message(socket, clients, channels)
