@@ -35,10 +35,10 @@ int main()
 
     int new_socket;
     while (true) {
-        new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
+        new_socket = accept(server_socketfd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
         if (new_socket < 0) {
             std::cerr << "Failed to accept connection." << std::endl;
-            close(server_fd);
+            close(server_socketfd);
             return -1;
         }
 
@@ -54,6 +54,6 @@ int main()
         close(new_socket);
     }
 
-    close(server_fd);
+    close(server_socketfd);
     return 0;
 }
