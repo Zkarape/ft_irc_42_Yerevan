@@ -20,26 +20,29 @@
 #include <fcntl.h>
 #include <poll.h>
 
-
 class Server
 {
 private:
     int _PortNumber;
     int _ServerSocket;
+    int _NumberOfPollfds;
     std::string _ServerPassword;
-    int parsePortNumber(char *port_str);
-    std::string parsePassword(char *password_str);
-    // void set_non_blocking(int socket);
-    int create_server_socket(int port);
-    void accept_create_new_client();
-    void handle_client_data(int client_socket);
-    void handle_client_disconnection(int client_socket);
+    std::string parsePassword(char *passwordStr);
     std::vector<int> _clients;
+    std::vector<pollfd> _Pollfds;
+    int parsePortNumber(char *portStr);
+    int create_server_socket(int port);
+    int call_poll_to_wait_for_events();
+    void accept_create_new_client();
+    void handle_client_data(int clientSocket);
+    void handle_client_disconnection(int clientSocket);
+    void add_sockets_to_poll_set();
 public:
     Server();
-    Server(char *port_str, char *password_str);
     Server(const Server &copy);
+    Server(char *portStr, char *passwordStr);
     Server &operator=(const Server &assign);
+    void main_loop();
     ~Server();
 };
 
