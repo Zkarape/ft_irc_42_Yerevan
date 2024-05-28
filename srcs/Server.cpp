@@ -1,4 +1,4 @@
-#include "Server.hpp"
+#include "../includes/Server.hpp"
 
 Server::Server() {}
 
@@ -45,8 +45,7 @@ std::string Server::parsePassword(char *password_str)
 
 void set_non_blocking(int socket)
 {
-    int flags = fcntl(socket, F_GETFL, 0);
-    fcntl(socket, F_SETFL, flags | O_NONBLOCK);
+    fcntl(socket, F_SETFL, O_NONBLOCK);
 }
 
 int Server::create_server_socket(int port)
@@ -107,32 +106,43 @@ void Server::handle_client_data(int client_socket)
     int bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received <= 0)
     {
-        handle_client_disconnection(client_socket);
+        if (bytes_received == 0)
+        {
+            std::cout << "Client disconnected: " << client_socket << std::endl;
+        }
+        else
+        {
+            perror("recv");
+        }
+        close(client_socket);
+        _clients.erase(std::remove(_clients.begin(), _clients.end(), client_socket), _clients.end());
         return;
     }
+
     buffer[bytes_received] = '\0';
     std::string message(buffer);
-    std::cout << "Received message from " << client_socket << ": " << message << std::endl;
-    for (std::vector<int>::iterator it = _clients.begin(); it != _clients.end(); ++it)
-    {
-        if (*it != client_socket)
-        {
-            send(*it, message.c_str(), message.size(), 0);
-        }
-    }
+    //parsing
+    // std::cout << "Received message from " << client_socket << ": " << message << std::endl;
+    _user.setInput(buffer);
+    _user.splitString();
+    // Respond directly to the client
+    std::string response = "Server received: " + message;
+    send(client_socket, response.c_str(), response.size(), 0);
 }
 
 void Server::add_sockets_to_poll_set()
 {
     pollfd _struct;
     _struct.fd = _ServerSocket;
-    _struct.events = POLLIN;
+    _struct.events = POLLIN | POLLOUT;
     _Pollfds.push_back(_struct);
     _NumberOfPollfds++;
     for (std::vector<int>::iterator it = _clients.begin(); it != _clients.end(); ++it)
     {
-        _Pollfds[_NumberOfPollfds].fd = *it;
-        _Pollfds[_NumberOfPollfds].events = POLLIN;
+        pollfd _struct;
+        _struct.fd = *it;
+        _struct.events = POLLIN | POLLOUT;
+        _Pollfds.push_back(_struct);
         _NumberOfPollfds++;
     }
 }
@@ -155,31 +165,14 @@ void Server::main_loop()
     {
         add_sockets_to_poll_set();
         call_poll_to_wait_for_events();
-        if (_Pollfds[0].revents & POLLIN)
+        if (_Pollfds[0].revents & (POLLIN | POLLOUT))
         {
             accept_create_new_client();
         }
         for (std::vector<pollfd>::iterator it = _Pollfds.begin(); it != _Pollfds.end(); ++it)
         {
-            handle_client_data(it->fd, _clients);
+            handle_client_data(it->fd);
         }
     }
     close(_ServerSocket);
-}
-
-int main()
-{
-    while (true)
-    {
-        for (int i = 1; i < num_fds; ++i)
-        {
-            if (fds[i].revents & POLLIN)
-            {
-                handle_client_data(fds[i].fd, clients);
-            }
-        }
-    }
-
-    close(server_socket);
-    return 0;
 }
