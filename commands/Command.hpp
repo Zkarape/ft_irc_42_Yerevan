@@ -1,11 +1,12 @@
 #pragma once
 
-#include "Client.hpp"
+#include "../User.hpp"
+#include "../Server.hpp"
 #include "Replies.hpp"
-#include "Server.hpp"
-
-
+#include "../Channel.hpp"
 #include <string>
+
+class Server;
 
 class Command
 {
@@ -16,12 +17,12 @@ class Command
         Server* _srv;
         bool _auth;
     public:
-        explicit Command(Server* srv, bool auth = true);
+        Command(Server* srv, bool auth = true);
         virtual ~Command();
 
         bool auth_required() const;
 
-        virtual void execute(Client* client, std::vector<std::string> args) = 0;
+        virtual void execute(User* user, std::vector<std::string> args) = 0;
 };
 
 class Privmsg : public Command
@@ -30,7 +31,7 @@ class Privmsg : public Command
        Privmsg(Server *srv);
        ~Privmsg();
 
-       void    execute(Client* client, std::vector<std::string> args);
+       void    execute(User* user, std::vector<std::string> args);
 
 };
 
@@ -40,7 +41,7 @@ class Notice : public Command
         Notice(Server *srv);
         ~Notice();
 
-        void    execute(Client* client, std::vector<std::string> args);
+        void    execute(User* user, std::vector<std::string> args);
 
 };
 
@@ -50,7 +51,7 @@ class Join : public Command
         Join(Server *srv);
         ~Join ();
 
-         void    execute(Client* client, std::vector<std::string> args);
+         void    execute(User* user, std::vector<std::string> args);
 };
 
 class Invite : public Command
@@ -59,16 +60,16 @@ class Invite : public Command
         Invite(Server *srv);
         ~Invite ();
 
-        void    execute(Client* client, std::vector<std::string> args);
+        void    execute(User* user, std::vector<std::string> args);
 };
 
-class Kick  : public Command
+class Kick : public Command
 {
     public:
         Kick(Server *srv);
         ~Kick();
 
-        void    execute(Client* client, std::vector<std::string> args);
+        void    execute(User* user, std::vector<std::string> args);
 };
 
 class Topic : public Command
@@ -77,5 +78,59 @@ class Topic : public Command
         Topic(Server *srv);
         ~Topic();
 
-         void    execute(Client* client, std::vector<std::string> args);
+        void    execute(User* user, std::vector<std::string> args);
+};
+
+class Nick : public Command
+{
+    public:
+        Nick(Server *srv);
+        ~Nick();
+
+        void    execute(User* user, std::vector<std::string> args);
+};
+
+class Pass : public Command
+{
+    public:
+        Pass(Server *srv);
+        ~Pass();
+
+        void    execute(User* user, std::vector<std::string> args);
+};
+
+class User_cmd : public Command
+{
+    public:
+        User_cmd(Server *srv);
+        ~User_cmd();
+
+        void    execute(User* user, std::vector<std::string> args);
+};
+
+class Mode : public Command
+{
+    public:
+        Mode(Server *srv);
+        ~Mode();
+
+        void    execute(User* user, std::vector<std::string> args);
+};
+
+class Ping : public Command
+{
+    public:
+        Ping(Server *srv);
+        ~Ping();
+
+        void    execute(User* user, std::vector<std::string> args);
+};
+
+class Pong : public Command
+{
+    public:
+        Pong(Server *srv);
+        ~Pong();
+
+        void    execute(User* user, std::vector<std::string> args);
 };

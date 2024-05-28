@@ -1,14 +1,14 @@
-#include "Command.cpp"
+#include "Command.hpp"
 
-Kick (Server *srv) : Command (srv) {}
+Kick(Server *srv) : Command(srv) {}
 
 Kick::~Kick() {}
 
-void Kick::execute(Client* client, std::vector<std::string> args)
+void Kick::execute(User *user, std::vector<std::string> args)
 {
     if (args.size() < 2)
     {
-        client->reply(ERR_NEEDMOREPARAMS(client->get_nickname(), "KICK"));
+        user->reply(ERR_NEEDMOREPARAMS(user->get_nickname(), "KICK"));
         return;
     }
 
@@ -16,7 +16,7 @@ void Kick::execute(Client* client, std::vector<std::string> args)
     std::string nickname = args[1];
     std::string reason = "No reason specified!";
 
-     if (args.size() >= 3 && (args[2][0] != ':' || args[2].size() > 1))
+    if (args.size() >= 3 && (args[2][0] != ':' || args[2].size() > 1))
     {
         reason = "";
 
@@ -25,7 +25,7 @@ void Kick::execute(Client* client, std::vector<std::string> args)
 
         while (it != end)
         {
-			reason.append(*it + " ");
+            reason.append(*it + " ");
             it++;
         }
     }
@@ -33,30 +33,30 @@ void Kick::execute(Client* client, std::vector<std::string> args)
     Channel *channel = _srv->get_channel(channelName);
     if (!channel)
     {
-        client->reply(ERR_NOSUCHCHANNEL(client->get_nickname(), channelName));
+        user->reply(ERR_NOSUCHCHANNEL(user->get_nickname(), channelName));
         return;
     }
 
-    if (!channel->is_operator(client))
+    if (!channel->isOperator(user))
     {
-        client->reply(ERR_CHANOPRIVSNEEDED(client->get_nickname(), channelName));
+        user->reply(ERR_CHANOPRIVSNEEDED(user->get_nickname(), channelName));
         return;
     }
 
-    Client* nick = _srv->get_client(nickname);
+    User *nick = _srv->get_client(nickname);
     if (!target)
     {
-        client->reply(ERR_NOSUCHNICK(client->get_nickname(), nickname));
+        user->reply(ERR_NOSUCHNICK(user->get_nickname(), nickname));
         return;
     }
 
-    if (!channel->is_user(nick))
+    if (!channel->isExist(nick))
     {
-        client->reply(ERR_USERNOTINCHANNEL(client->get_nickname(), nickname, channelName));
+        user->reply(ERR_USERNOTINCHANNEL(user->get_nickname(), nickname, channelName));
         return;
     }
 
-    channel->kick_user(target);
-    nick->reply(":" + client->get_prefix() + " KICK " + channelName + " " + nickname + " :" + reason);
-    channel->broadcast(":" + client->get_prefix() + " KICK " + channelName + " " + nickname + " :" + reason, client);
+    channel->kick(target);
+    nick->reply(":" + user->get_prefix() + " KICK " + channelName + " " + nickname + " :" + reason);
+    channel->sendMsgToChannel(":" + user->get_prefix() + " KICK " + channelName + " " + nickname + " :" + reason, user);
 }

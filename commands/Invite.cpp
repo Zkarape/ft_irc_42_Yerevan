@@ -1,47 +1,47 @@
 #include "Command.hpp"
 
-Inite::Inite(Server* srv) : Command(srv) {}
+Invite::Invite(Server *srv) : Command(srv) {}
 
-Inite::~Inite() {}
+Invite::~Invite() {}
 
-void Invite::execute(Client* client, std::vector<std::string> args)
+void Invite::execute(User *user, std::vector<std::string> args)
 {
     if (args.size() < 2)
     {
-         client->reply(ERR_NEEDMOREPARAMS(client->get_nickname(), "WHO"));
-         return:
+        user->reply(ERR_NEEDMOREPARAMS(user->get_nickname(), "WHO"));
+        return:
     }
 
     std::string nickname = args[0];
     std::string channelName = args[1];
 
-    Channel* channel = _srv->get_channel(channelName);
-   
+    Channel *channel = _srv->get_channel(channelName);
+
     if (!channel)
     {
-        client->reply(ERR_NOSUCHCHANNEL(client->get_nickname(), channelName));
+        user->reply(ERR_NOSUCHCHANNEL(user->get_nickname(), channelName));
         return;
     }
-    Client *invite = _srv->get_client(nickname);
-     
-     if (!invite) 
+    User *invite = _srv->get_client(nickname);
+
+    if (!invite)
     {
-        client->reply(ERR_NOSUCHNICK(client->get_nickname(), nickname));
+        user->reply(ERR_NOSUCHNICK(user->get_nickname(), nickname));
         return;
     }
 
-    if (!channel->is_operator(client))
+    if (!channel->isOperator(user))
     {
-        client->reply(ERR_CHANOPRIVSNEEDED(client->get_nickname(), channelName));
+        user->reply(ERR_CHANOPRIVSNEEDED(user->get_nickname(), channelName));
         return;
     }
 
-     if (channel->is_user(invite))
-     {
-        client->reply(ERR_USERONCHANNEL(client->get_nickname(), nickname, channelName));
+    if (channel->isExist(invite))
+    {
+        user->reply(ERR_USERONCHANNEL(user->get_nickname(), nickname, channelName));
         return;
     }
 
-    invite->reply(":" + client->get_prefix() + " INVITE " + invite->get_nickname() + " :" + channelName);
-    client->reply(RPL_INVITING(client->get_nickname(), nickname, channelName));
+    invite->reply(":" + user->get_prefix() + " INVITE " + invite->get_nickname() + " :" + channelName);
+    user->reply(RPL_INVITING(user->get_nickname(), nickname, channelName));
 }

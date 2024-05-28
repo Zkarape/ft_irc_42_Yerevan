@@ -1,74 +1,43 @@
-#include "Command.cpp"
+#include "Command.hpp"
 
-Privmsg::Privmsg(Server* srv) : Command(srv) {}
+Privmsg::Privmsg(Server *srv) : Command(srv) {}
 
 Privmsg::~Privmsg() {}
 
-void    Privmsg::execute(Client* client, std::vector<std::string> args)
+void Privmsg::execute(User *user, std::vector<std::string> args)
 {
     if (args.size() < 2 || args[0].empty() || args[1].empty())
     {
-        client->reply(ERR_NEEDMOREPARAMS(client->get_nickname(), "PRIVMSG"));
+        user->reply(ERR_NEEDMOREPARAMS(user->get_nickname(), "PRIVMSG"));
         return;
     }
 
-    std::string target = args[0];
-    std::string message;
-
-    std::vector<std::string>::iterator it = args.begin() + 1;
-    std::vector<std::string>::iterator end = args.end();
-
-    while (it != end)
+    std::string target = obj[0];
+    std::string message = obj[1].substr(obj[1][0] == ':' ? 1 : 0);
+    for (size_t i = 2; i < obj.size(); ++i)
+        message.append(" " + obj[i]);
+    if (target[0] == '#' || target[0] == '&')
     {
-        message.append(*it + " ");
-        it++;
-    }
-
-    if (message.at(0) == ':')
-        message = message.substr(1);
-
-    if (target.at(0) == '#')
-    {
-        Channel* channel = client->get_channel();
-
-         if (!channel)
+        Channel *channel = _Server->getChannel(target);
+        if (!channel)
         {
-            user->reply(ERR_NOSUCHNICK(user->get_nickname(), target));
+            user->ReplyMsg(ERR_NOSUCHNICK(user->getNickname(), target));
             return;
         }
-
-        if (!channel->is_member())
+        if (!channel->isExist(user))
         {
-            std::vector<std::string> nicknames = channel->get_nicknames();
-
-            std::vector<std::string>::iterator it = nicknames.begin();
-            std::vector<std::string>::iterator end = nicknames.end();
-
-             while (it != end)
-            {
-                if (*it == client->get_nickname())
-                    break;
-
-                it++;
-            }
-
-            if (it == end)
-            {
-                client->reply(ERR_CANNOTSENDTOCHAN(client->get_nickname(), target));
-                return;
-            }
+            user->ReplyMsg(ERR_CANNOTSENDTOCHAN(user->getNickname(), target));
+            return;
         }
-
-        channel->broadcast(RPL_PRIVMSG(client->get_prefix(), target, message), client);
+        channel->sendMsgToChannel(user, RPL_MSG(user->getMessage(), "PRIVMSG", target, message));
         return;
     }
 
-    Client  *dest = _srv->get_client(target);
-    if (!dest)
+    User *new_user = _Server->getUser(target);
+    if (!new_user)
     {
-        client->reply(ERR_NOSUCHNICK(client->get_nickname(), target));
-		return;
+        user->ReplyMsg(ERR_NOSUCHNICK(user->getNickname(), target));
+        return;
     }
-
-    dest->write(RPL_PRIVMSG(client->get_prefix(), target, message));
+    new_user->SendMsg(RPL_MSG(user->getMessage(), "PRIVMSG", target, message));
 }

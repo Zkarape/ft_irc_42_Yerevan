@@ -1,54 +1,39 @@
-#include "Command.cpp"
+#include "Command.hpp"
 
 Topic::Topic(Server *srv) : Command(srv) {}
 Topic::~Topic() {}
 
-void Topic::execute(Client* client, std::vector<std::string> args)
+void Topic::execute(User *user, std::vector<std::string> args)
 {
     if (args.size() < 1)
     {
-        client->reply(ERR_NEEDMOREPARAMS(client->get_nickname(), "TOPIC"));
+        user->SendMsg(ERR_NEEDMOREPARAMS(user->getNickname(), "TOPIC"));
         return;
     }
-
-    std::string channelName = args[0];
-    Channel* channel = _srv->get_channel(channelName);
-    if (!channel)
+    Channel *channel = _Server->get_channel(args[0]);
+    if (channel == NULL)
     {
-        client->reply(ERR_NOSUCHCHANNEL(client->get_nickname(), channelName));
+        user->SendMsg(ERR_NOSUCHCHANNEL(user->getNickname(), args[0]));
         return;
     }
-
-    if (!channel->is_user(client))
+    if (channel->getUser(user->getNickname()) == NULL)
     {
-        client->reply(ERR_NOTONCHANNEL(client->get_nickname(), channelName));
+        user->SendMsg(ERR_NOTONCHANNEL(user->getNickname(), args[0]));
         return;
     }
-
-    if (args.size() == 1)
+    if (!channel->isAdmin(user) && !channel->isOperator(user))
     {
-        std::string topic = channel->get_topic();
-        if (topic.empty())
-        {
-            client->reply(RPL_NOTOPIC(client->get_nickname(), channelName));
-        }
-        else
-        {
-            client->reply(RPL_TOPIC(client->get_nickname(), channelName, topic));
-        }
+        user->SendMsg(ERR_CHANOPRIVSNEEDED(user->getNickname(), channel->getName()));
+        return;
     }
-
-    else
+    if (channel->isOperator(user) && !channel->isTopicOperators())
     {
-        if (!channel->is_operator(client) && channel->topic_protected())
-        {
-            client->reply(ERR_CHANOPRIVSNEEDED(client->get_nickname(), channelName));
-            return;
-        }
-
-        std::string Topic = args[1].substr(args[1][0] == ':' ? 1 : 0);
-        channel->set_topic(Topic);
-
-        channel->broadcast(RPL_TOPIC(client->get_prefix(), channelName, Topic));
+        user->SendMsg(RPL_NOTOPIC(user->getNickname(), channel->getName()));
+        return;
     }
+    std::string topic = args[1];
+    for (size_t i = 2; i < args.size(); i++)
+        topic += " " + args[i];
+    channel->setTopic(topic);
+    user->SendMsg(RPL_TOPIC(user->getNickname(), channel->getName(), channel->getTopic()));
 }
