@@ -1,12 +1,17 @@
 #include "../includes/User.hpp"
 
-User::User() : _Nick("Default_nickname"), is_admin(0) {}
+User::User() :is_admin(0), _Nick("Default_nickname") {}
 
 User::User(const User &copy)
 {
     this->_Socket = copy._Socket;
     this->is_admin = copy.is_admin;
     this->_Nick = copy._Nick;
+}
+
+User::User(int fd) : _Socket(fd)
+{
+    
 }
 
 User & User::operator=(const User &assign)
@@ -20,7 +25,7 @@ void User::setInput(char *input)
     _input = input;
 }
 
-void User::splitString()
+void User::splitAndAssign()
 {
     // Find the first space to extract the command
     size_t firstSpace = _input.find(' ');
@@ -55,6 +60,5 @@ void User::splitString()
         this->_nicknames.push_back(nickname);
     }
 }
-
 
 User::~User() {}

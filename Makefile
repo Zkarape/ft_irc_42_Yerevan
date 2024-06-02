@@ -1,33 +1,39 @@
-NAME      = ircserv
+NAME = ircserv
 
-CC        = c++ 
+TMP = objs
 
-FLAGS     = -Wextra -Werror -Wall -g3 -ggdb3 -std=c++98 -pedantic
+CXX = c++
 
-SRCDIR = srcs
+CXXFLAGS = -I./includes -std=c++98  -Wall -Wextra -Werror -g -fsanitize=address
 
-HEADERS = includes
+LDFLAGS = -lasan -L/path/to/lib
 
-SRCS_FILES = $(wildcard $(SRCDIR)/*.cpp)
+SRCS = $(wildcard src/*.cpp)
 
-HEADER = $(wildcard $(HEADERS)/*.hpp)
+OBJS = $(patsubst src/%.cpp, ./$(TMP)/%.o, $(SRCS))
 
-OBJ_FILES = $(SRC_FILES:.cpp=.o)
+RM = rm -fr
 
-%.o: %.cpp $(HEADER) Makefile
-		$(CC) $(FLAGS) -c $< -o $@
+HEADER = $(wildcard includes/*.hpp)
 
-all: $(NAME)
+./$(TMP)/%.o: src/%.cpp $(HEADER) Makefile
+	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
-$(NAME): $(OBJ_FILES)
-		$(CC) $(FLAGS) -o $(NAME) $^
+all: $(NAME) 
+
+$(NAME): $(TMP) $(OBJS)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
+
+$(TMP):
+	@mkdir $(TMP)
 
 clean:
-	rm -rf $(OBJ_FILES)
+	$(RM) $(OBJS_DIR)
+	$(RM) $(TMP)
 
 fclean: clean
-	rm -rf $(NAME)
+	$(RM) $(NAME)
 
-re: fclean all
+re:	fclean all
 
-.PHONY: all fclean clean re
+.PHONY: all clean fclean re bonus
