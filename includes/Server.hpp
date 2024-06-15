@@ -20,7 +20,9 @@
 #include <cerrno>
 #include "User.hpp"
 #include "Channel.hpp"
+#include "Command.hpp"
 
+class Command;
 class Server
 {
 private:
@@ -36,24 +38,30 @@ private:
     fd_set _masterWriteFds;
     std::string _ServerPassword;
     std::string _msgSendToClient;
-    std::map<int, User> _clients;
+    std::map<int, User *> _clients;
+    std::map<std::string, Command *> _commands;
+    std::map<std::string, Channel *> _channels;
+    std::vector<User *> _clientToDelete;
     struct sockaddr_in _clientAddr;
     socklen_t _clientLen;
     // std::vector<pollfd> _Pollfds;
     // std::map<std::string, Channel *> _channels;
     std::string parsePassword(char *passwordStr);
+    void addClientToDelete(User *client);
     int parsePortNumber(char *portStr);
     int create_server_socket(int port);
-    int call_poll_to_wait_for_events();
     int accept_create_new_client();
-    void handle_client_data(int clientSocket);
+    void handle_client_data();
     void handle_client_disconnection(int clientSocket);
-    void add_sockets_to_poll_set();
     void selectCall();
+    void print_channels();
     void addToReadSet(int fd);
     void addToWriteSet(int fd);
-    void recv_part(int client_fd, fd_set& copy_of_master_read_set, int selectFd);
-    void send_part();
+    void delFromReadSet(int fd);
+    void delFromWriteSet(int fd);
+    int recv_part(int client_fd, fd_set &copy_of_master_read_set, User *user);
+    int send_part(int client_fd, fd_set &copy_of_master_read_set, User *user);
+
 public:
     Server();
     Server(const Server &copy);

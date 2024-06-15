@@ -1,6 +1,6 @@
 #include "../includes/User.hpp"
 
-User::User() :is_admin(0), _Nick("Default_nickname") {}
+User::User() : is_admin(0), _Nick("Default_nickname") {}
 
 User::User(const User &copy)
 {
@@ -9,12 +9,36 @@ User::User(const User &copy)
     this->_Nick = copy._Nick;
 }
 
-User::User(int fd) : _Socket(fd)
+User::User(int fd, const struct sockaddr &addr) : _Socket(fd)
 {
-    
+    // _address = addr;
 }
 
-User & User::operator=(const User &assign)
+void User::sendMsgToBeSent(void)
+{
+    if (send(this->_Socket, this->_MsgToBeSent.c_str(), this->_MsgToBeSent.length(), 0) < 0)
+        std::cerr << "Error: can't send message to client." << std::endl;
+    this->_MsgToBeSent.clear();
+}
+
+std::string User::getMsgToBeSent() const
+{
+    return _MsgToBeSent;
+}
+
+User::User(int fd) : _Socket(fd) {}
+
+std::string User::getCommand(void) const
+{
+    return _command;
+}
+
+std::vector<std::string> User::getNicknamesAsArguments(void) const
+{
+    return _nicknames;
+}
+
+User &User::operator=(const User &assign)
 {
     *this = assign;
     return *this;
@@ -23,6 +47,11 @@ User & User::operator=(const User &assign)
 void User::setInput(char *input)
 {
     _input = input;
+}
+
+std::string User::getNickname(void) const
+{
+    return _Nick;
 }
 
 void User::splitAndAssign()

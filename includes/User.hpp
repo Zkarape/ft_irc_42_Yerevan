@@ -17,7 +17,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "Command.hpp"
 
+class Command;
 class User
 {
 private:
@@ -29,14 +31,22 @@ private:
     std::string _message;
     std::string _input;
     std::string _command;
+    std::string _MsgToBeSent;
     std::vector<std::string> _nicknames;
     // std::map<std::string, Channel> _map_for_channels_that_user_belongs_to;
     // std::map<std::string, void (*)(Command *)> command_function;
 public:
     User();
+    User(int fd, const struct sockaddr &addr);
     User(int fd);
     User(const User &copy);
+    std::string _buffer;
     User &operator=(const User &copy);
+    std::string getCommand(void) const;
+    std::string getNickname(void) const;
+    std::string getMsgToBeSent() const;
+    void sendMsgToBeSent(void);
+    std::vector<std::string> getNicknamesAsArguments(void) const;
     void setInput(char *);
     void splitAndAssign();
     ~User();
