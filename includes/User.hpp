@@ -18,21 +18,37 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "Command.hpp"
+#include "EventManager.hpp"
 
 class Command;
+class Channel;
+
+
+enum TypeClient
+{
+    Admin,
+    Operator,
+    Primary
+};
+
 class User
 {
 private:
     int _Socket;
     bool is_admin;
+    bool _registered;
     sockaddr_in _address;
     std::string _Nick;
+    std::string _password;
+    std::string _username;
     std::string _realname;
     std::string _message;
     std::string _input;
     std::string _command;
     std::string _MsgToBeSent;
+    std::string _finalResponse;
     std::vector<std::string> _nicknames;
+    std::map<std::string, std::pair<Channel*, TypeClient> > _channels;
     // std::map<std::string, Channel> _map_for_channels_that_user_belongs_to;
     // std::map<std::string, void (*)(Command *)> command_function;
 public:
@@ -40,13 +56,27 @@ public:
     User(int fd, const struct sockaddr &addr);
     User(int fd);
     User(const User &copy);
+    bool _isColon;
+    int getFd(void);
+    bool isRegistered(void);
     std::string _buffer;
     User &operator=(const User &copy);
     std::string getCommand(void) const;
+    std::string getPassword(void) const;
     std::string getNickname(void) const;
     std::string getMsgToBeSent() const;
-    void sendMsgToBeSent(void);
+    std::string getPrefix(void) const;
+    std::string getMSG(void) const;
     std::vector<std::string> getNicknamesAsArguments(void) const;
+    bool checkForRegistered(void);
+    void setNickname(const std::string& nick);
+    void setPassword(const std::string& pass);
+    void joinToChannel(Channel &channel);
+    void leaveALLChannels();
+    void appendResponse(const std::string &str);
+    void sendMsg(const std::string& msg);
+    void reply(const std::string& reply);
+    void sendMsgToBeSent(void);
     void setInput(char *);
     void splitAndAssign();
     ~User();

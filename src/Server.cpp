@@ -29,19 +29,7 @@ Server::Server(char *port_str, char *password_str) : _NumberOfPollfds(0)
     _ServerSocket = create_server_socket(_PortNumber);
     _maxfd = _ServerSocket;
     _clientLen = sizeof(_clientAddr);
-    FD_ZERO(&_masterReadFds);
-    FD_ZERO(&_masterWriteFds);
     addToReadSet(_ServerSocket);
-}
-
-void Server::addToReadSet(int fd)
-{
-    FD_SET(fd, &_masterReadFds);
-}
-
-void Server::addToWriteSet(int fd)
-{
-    FD_SET(fd, &_masterWriteFds);
 }
 
 int Server::parsePortNumber(char *port_str)
@@ -58,6 +46,41 @@ std::string Server::parsePassword(char *password_str)
     return pass;
 }
 
+
+User* Server::getClient(const std::string& nick)
+{
+    std::map<int, User *>::iterator it_b = _clients.begin();
+    std::map<int, User *>::iterator it_e = _clients.end();
+
+    while (it_b != it_e)
+    {
+        if (!nick.compare(it_b->second->getNickname()))
+            return it_b->second;
+
+        it_b++;
+    }
+
+    return (NULL);
+}
+
+
+Channel* Server::getChannel(const std::string& name)
+{
+    std::map<std::string, Channel *>::iterator it = this->_channels.find(name);
+    if (it != this->_channels.end())
+    {
+        return(it->second);
+    }
+    return (NULL);
+}
+
+
+std::string Server::getPASS(void) const
+{
+    return _ServerPassword;
+}
+
+
 void set_non_blocking(int socket)
 {
     if (fcntl(socket, F_SETFL, O_NONBLOCK) == -1)
@@ -67,6 +90,7 @@ void set_non_blocking(int socket)
     }
 }
 
+
 int Server::create_server_socket(int port)
 {
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -75,7 +99,8 @@ int Server::create_server_socket(int port)
         perror("Cannot create socket");
         exit(EXIT_FAILURE);
     }
-    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+    int optval = 1;
+    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
     {
         perror("setsockopt");
         exit(EXIT_FAILURE);
@@ -103,12 +128,10 @@ int Server::create_server_socket(int port)
     return server_socket;
 }
 
-void Server::selectCall()
+void Server::selectCall(fd_set &copy_of_master_read_set, fd_set &copy_of_master_write_set)
 {
-    fd_set copy_of_master_read_set = _masterReadFds;
-    fd_set copy_of_master_write_set = _masterWriteFds;
     int accept_retval;
-    _selectFd = select(_maxfd + 1, &copy_of_master_read_set, &copy_of_master_read_set, NULL, NULL);
+    _selectFd = select(_maxfd + 1, &copy_of_master_read_set, &copy_of_master_write_set, NULL, NULL);
     if (_selectFd == -1)
     {
         perror("select returned -1\n");
@@ -117,11 +140,11 @@ void Server::selectCall()
     {
         if (FD_ISSET(_ServerSocket, &copy_of_master_read_set))
         {
-            if (accept_retval = accept_create_new_client() >= _maxfd)
+            if ((accept_retval = accept_create_new_client()) >= _maxfd)
             {
                 _maxfd = accept_retval;
             }
-            addToReadSet(accept_retval);
+            EventManager::addReadFd(accept_retval);
             User *tmp = new User(accept_retval);
             _clients[accept_retval] = tmp;
         }
@@ -174,7 +197,7 @@ int Server::recv_part(int client_fd, fd_set &copy_of_master_read_set, User *user
             }
             close(client_fd);
             _clients.erase(std::remove(_clients.begin(), _clients.end(), client_fd), _clients.end());
-            return;
+            return 2;
         }
         else if (bytes_received > 0)
         {
@@ -200,12 +223,14 @@ int Server::recv_part(int client_fd, fd_set &copy_of_master_read_set, User *user
             }
         }
     }
+    return 0;
 }
 
-int Server::send_part(int client_fd, fd_set &copy_of_master_read_set, User *user)
+int Server::send_part(int client_fd, User *user)
 {
     user->sendMsgToBeSent();
-    delFromWriteSet(client_fd);
+    EventManager::delWriteFd(client_fd);
+    return 0;
 }
 
 void Server::addClientToDelete(User *client)
@@ -213,42 +238,47 @@ void Server::addClientToDelete(User *client)
     this->_clientToDelete.push_back(client);
 }
 
-void Server::handle_client_data()
+void Server::deleteClient(User *client)
 {
+    this->_clients.erase(client->getFd());
+    delete client;
+    this->_clients.erase(100);
+}
+
+
+void Server::to_delete_clients()
+{
+    for (size_t i = 0; i < _clientToDelete.size(); ++i)
+    {
+        std::cout << " _clientToDelete[i]->getNICK()" << _clientToDelete[i]->getNickname() << std::endl;
+        deleteClient(_clientToDelete[i]);
+    }
+    _clientToDelete.clear();
+}
+
+
+void Server::handle_client_data(fd_set &read_fds, fd_set &write_fds)
+{
+    EventManager::start();
+    EventManager::addReadFd(this->_ServerSocket);
     for (std::map<int, User *>::iterator it = this->_clients.begin(); _selectFd != 0 && it != this->_clients.end(); ++it)
     {
-        if (FD_ISSET(it->first, &_masterReadFds))
+        if (FD_ISSET(it->first, &read_fds))
         {
-            recv_part(it->first, _masterReadFds, it->second);
+            recv_part(it->first, read_fds, it->second);
         }
-        else if (FD_ISSET(it->first, &_masterWriteFds))
+        else if (FD_ISSET(it->first, &write_fds))
         {
-            send_part(it->first, _masterWriteFds, it->second);
+            send_part(it->first, it->second);
         }
+        to_delete_clients();
     }
-    // for (size_t i = 0; i < _clientToDelete.size(); ++i)
-    // {
-    //     std::cout << " _clientToDelete[i]->getNICK()" << _clientToDelete[i]->getNICK() << std::endl;
-    //     ;
-    //     deleteClient(_clientToDelete[i]);
-    // }
-    // _clientToDelete.clear();
-}
-
-void Server::delFromWriteSet(int fd)
-{
-    FD_CLR(fd, &_masterWriteFds);
-}
-
-void Server::delFromReadSet(int fd)
-{
-    FD_CLR(fd, &_masterReadFds);
 }
 
 void Server::print_channels()
 {
     std::map<std::string, Channel *>::iterator it = this->_channels.begin();
-    for( ; it != this->_channels.end(); ++it)
+    for (; it != this->_channels.end(); ++it)
     {
         std::cout << "!!!: " << it->first << std::endl;
     }
@@ -256,10 +286,13 @@ void Server::print_channels()
 
 void Server::main_loop()
 {
+    fd_set read_fds = *EventManager::getReadFdSet(); // copy it
+    fd_set write_fds = *EventManager::getWriteFdSet(); // copy it
+
     while (true)
     {
-        selectCall();
-        handle_client_data();
+        selectCall(read_fds, write_fds);
+        handle_client_data(read_fds, write_fds);
     }
     close(_ServerSocket);
 }

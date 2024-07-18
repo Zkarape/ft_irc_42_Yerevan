@@ -1,6 +1,6 @@
-#include "Command.hpp"
+#include "../includes/Command.hpp"
 
-Command::Command(Server* srv, bool auth) :_srv(srv), _auth(auth) {}
+Command::Command(Server& srv, bool auth): _srv(srv), _auth(auth) {}
 
 Command::~Command() {}
 

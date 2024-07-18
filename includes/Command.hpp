@@ -3,7 +3,7 @@
 #include "User.hpp"
 #include "Server.hpp"
 #include "Channel.hpp"
-#include <string>
+#include "replies.hpp"
 
 class Server;
 class User;
@@ -12,12 +12,12 @@ class Command
 {
     protected:
         Command();
-        Command(const Command& srv);
+        Command(const Server& srv);
 
-        Server* _srv;
+        Server& _srv;
         bool _auth;
     public:
-        Command(Server* srv, bool auth = true);
+        Command(Server& srv, bool auth = true);
         virtual ~Command();
 
         bool auth_required() const;
@@ -25,11 +25,11 @@ class Command
         virtual void execute(User& user, std::vector<std::string> args) = 0;
 };
 
-class Privmsg : public Command
+class PrivMsg : public Command
 {
     public:
-       Privmsg(Server *srv);
-       ~Privmsg();
+       PrivMsg(Server &srv);
+       ~PrivMsg();
 
        void    execute(User& user, std::vector<std::string> args);
 
@@ -38,7 +38,7 @@ class Privmsg : public Command
 class Notice : public Command
 {
     public:
-        Notice(Server *srv);
+        Notice(Server &srv);
         ~Notice();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -48,7 +48,7 @@ class Notice : public Command
 class Join : public Command
 {
     public:
-        Join(Server *srv);
+        Join(Server &srv);
         ~Join ();
 
          void    execute(User& user, std::vector<std::string> args);
@@ -57,7 +57,7 @@ class Join : public Command
 class Invite : public Command
 {
     public:
-        Invite(Server *srv);
+        Invite(Server &srv);
         ~Invite ();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -66,7 +66,7 @@ class Invite : public Command
 class Kick : public Command
 {
     public:
-        Kick(Server *srv);
+        Kick(Server &srv);
         ~Kick();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -75,7 +75,7 @@ class Kick : public Command
 class Topic : public Command
 {
     public:
-        Topic(Server *srv);
+        Topic(Server &srv);
         ~Topic();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -84,7 +84,7 @@ class Topic : public Command
 class Nick : public Command
 {
     public:
-        Nick(Server *srv);
+        Nick(Server &srv, bool auth);
         ~Nick();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -93,7 +93,7 @@ class Nick : public Command
 class Pass : public Command
 {
     public:
-        Pass(Server *srv);
+        Pass(Server &srv, bool auth);
         ~Pass();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -102,7 +102,7 @@ class Pass : public Command
 class User_cmd : public Command
 {
     public:
-        User_cmd(Server *srv);
+        User_cmd(Server &srv);
         ~User_cmd();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -111,7 +111,7 @@ class User_cmd : public Command
 class Mode : public Command
 {
     public:
-        Mode(Server *srv);
+        Mode(Server &srv);
         ~Mode();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -120,7 +120,7 @@ class Mode : public Command
 class Ping : public Command
 {
     public:
-        Ping(Server *srv);
+        Ping(Server &srv);
         ~Ping();
 
         void    execute(User& user, std::vector<std::string> args);
@@ -129,8 +129,19 @@ class Ping : public Command
 class Pong : public Command
 {
     public:
-        Pong(Server *srv);
+        Pong(Server &srv);
         ~Pong();
 
         void    execute(User& user, std::vector<std::string> args);
+};
+
+
+class Who : public Command
+{
+    public:
+
+        Who(Server& srv);
+        ~Who();
+
+        void    execute(User& client, std::vector<std::string> args);
 };

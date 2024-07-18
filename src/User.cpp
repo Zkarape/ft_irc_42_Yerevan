@@ -14,6 +14,54 @@ User::User(int fd, const struct sockaddr &addr) : _Socket(fd)
     // _address = addr;
 }
 
+int User::getFd(void)
+{
+    return (this->_Socket);
+}
+
+
+std::string User::getPrefix(void) const
+{
+    std::string prefix = this->_Nick;
+
+    if (!this->_username.empty())
+    {
+        prefix += "!" + this->_username;
+    }
+
+    if (!this->_realname.empty())
+    {
+        prefix += "@" + this->_realname;
+    }
+
+    return (prefix); 
+}
+
+
+void User::reply(const std::string& reply)
+{
+    std::string buff = ":" + this->getPrefix() + " " + reply + "\r\n";
+
+    EventManager::addWriteFd(this->_Socket);
+    this->appendResponse(buff);
+}
+
+
+void User::appendResponse(const std::string &str)
+{
+    _finalResponse.append(str);
+};
+
+
+void User::sendMsg(const std::string& msg)
+{
+    std::string buff = msg + "\r\n";
+
+    EventManager::addWriteFd(this->_Socket);
+    this->appendResponse(buff);
+}
+
+
 void User::sendMsgToBeSent(void)
 {
     if (send(this->_Socket, this->_MsgToBeSent.c_str(), this->_MsgToBeSent.length(), 0) < 0)
@@ -54,6 +102,45 @@ std::string User::getNickname(void) const
     return _Nick;
 }
 
+std::string User::getMSG(void) const
+{
+    return (_message);
+}
+
+bool User::isRegistered(void)
+{
+    return (this->_registered);
+}
+
+void User::setNickname(const std::string& nick)
+{
+    this->_Nick = nick;
+}
+
+void User::setPassword(const std::string& pass)
+{
+    this->_password = pass;
+}
+
+std::string User::getPassword(void) const
+{
+    return _password;
+}
+
+bool User::checkForRegistered(void)
+{
+    if (!_password.empty() && !_username.empty() && !_Nick.empty() && !_registered)
+    {
+        this->_registered = true;
+        reply(RPL_WELCOME(_Nick));
+    }
+    else
+        this->_registered = false;
+
+    return (this->_registered);
+}
+
+
 void User::splitAndAssign()
 {
     // Find the first space to extract the command
@@ -90,4 +177,42 @@ void User::splitAndAssign()
     }
 }
 
-User::~User() {}
+
+void User::sendMsg(const std::string& msg)
+{
+    std::string buff = msg + "\r\n";
+
+    EventManager::addWriteFd(this->_Socket);
+    this->appendResponse(buff);
+}
+
+void User::joinToChannel(Channel &channel)
+{
+
+    std::map<std::string, std::pair<Channel*, TypeClient> >::iterator it = this->_channels.find(channel.getName());
+
+    if (it == this->_channels.end())
+    {
+        this->_channels.insert(std::pair<std::string, std::pair<Channel*, TypeClient> >(channel.getName(), std::pair<Channel*, TypeClient>(&channel, Primary)));
+    }
+}
+
+void User::leaveALLChannels()
+{
+    std::map<std::string, std::pair<Channel*, TypeClient> >::iterator it = this->_channels.begin();
+
+    for (; it != this->_channels.end(); ++it)
+    {
+        it->second.first->deleteClient(*this);
+    }
+    this->_channels.clear();
+}
+
+
+User::~User()
+{
+    this->leaveALLChannels();
+    close(_Socket);
+    EventManager::delReadFd(_Socket);
+    EventManager::delWriteFd(_Socket);
+}
