@@ -11,7 +11,12 @@ User::User(const User &copy)
 
 User::User(int fd, const struct sockaddr &addr) : _Socket(fd)
 {
-    // _address = addr;
+    this->_address = addr;
+    this->_registered = false;
+
+    char hostname[NI_MAXHOST];
+    getnameinfo((struct sockaddr*)&addr, sizeof(addr), hostname, NI_MAXHOST, NULL, 0, NI_NUMERICSERV);
+    // _hostname = hostname;
 }
 
 int User::getFd(void)
@@ -97,6 +102,11 @@ void User::setInput(char *input)
     _input = input;
 }
 
+void User::setInput(std::string input)
+{
+    _input = input;
+}
+
 std::string User::getNickname(void) const
 {
     return _Nick;
@@ -127,6 +137,13 @@ std::string User::getPassword(void) const
     return _password;
 }
 
+void User::setUSER(const std::string& username, const std::string& realname)
+{
+    this->_username = username;
+    this->_realname = realname;
+}
+
+
 bool User::checkForRegistered(void)
 {
     if (!_password.empty() && !_username.empty() && !_Nick.empty() && !_registered)
@@ -140,15 +157,27 @@ bool User::checkForRegistered(void)
     return (this->_registered);
 }
 
+void User::leaveChannel(const std::string &name)
+{
+    std::map<std::string, std::pair<Channel*, TypeClient> >::iterator it = this->_channels.find(name);
 
-void User::splitAndAssign()
+    if (it != this->_channels.end())
+    {
+        it->second.first->deleteClient(*this);
+        this->_channels.erase(it);
+    }
+}
+
+
+int User::splitAndAssign()
 {
     // Find the first space to extract the command
     size_t firstSpace = _input.find(' ');
+    std::cout << _input << " " << firstSpace << "=--------\n";
     if (firstSpace == std::string::npos)
     {
         std::cerr << "Invalid input format: no command found" << std::endl;
-        return;
+        return 1;
     }
 
     // Extract the command
@@ -159,7 +188,7 @@ void User::splitAndAssign()
     if (colonPos == std::string::npos)
     {
         std::cerr << "Invalid input format: no message found" << std::endl;
-        return;
+        return 1;
     }
 
     // Extract the nicknames substring
@@ -171,20 +200,23 @@ void User::splitAndAssign()
     // Split the nicknames by commas
     std::stringstream ss(nicknamesStr);
     std::string nickname;
-    while (std::getline(ss, nickname, ','))
+    while (std::getline(ss, nickname, ' '))
     {
         this->_nicknames.push_back(nickname);
     }
+    std::cout << "_nicknames.size() == " << _nicknames.size() << std::endl;
+    if (_nicknames.size() != 1)
+    {
+        std::cerr << "Invalid input format: no message found" << std::endl;
+        return 1;
+    }
+    // while (std::getline(ss, nickname, ','))
+    // {
+    //     this->_nicknames.push_back(nickname);
+    // }
+    return 1;
 }
 
-
-void User::sendMsg(const std::string& msg)
-{
-    std::string buff = msg + "\r\n";
-
-    EventManager::addWriteFd(this->_Socket);
-    this->appendResponse(buff);
-}
 
 void User::joinToChannel(Channel &channel)
 {

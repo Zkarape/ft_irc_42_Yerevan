@@ -37,7 +37,8 @@ private:
     int _Socket;
     bool is_admin;
     bool _registered;
-    sockaddr_in _address;
+    struct sockaddr _address;
+    std::string _args;
     std::string _Nick;
     std::string _password;
     std::string _username;
@@ -58,6 +59,7 @@ public:
     User(const User &copy);
     bool _isColon;
     int getFd(void);
+    int splitAndAssign();
     bool isRegistered(void);
     std::string _buffer;
     User &operator=(const User &copy);
@@ -70,6 +72,8 @@ public:
     std::vector<std::string> getNicknamesAsArguments(void) const;
     bool checkForRegistered(void);
     void setNickname(const std::string& nick);
+    void setUSER(const std::string& username, const std::string& realname);
+    void leaveChannel(const std::string &name);
     void setPassword(const std::string& pass);
     void joinToChannel(Channel &channel);
     void leaveALLChannels();
@@ -78,7 +82,8 @@ public:
     void reply(const std::string& reply);
     void sendMsgToBeSent(void);
     void setInput(char *);
-    void splitAndAssign();
+    void setInput(std::string);
+
     ~User();
 };
 

@@ -16,20 +16,80 @@ Server::Server(const Server &copy)
     *this = copy;
 }
 
-Server &Server::operator=(const Server &assign)
-{
-    *this = assign;
-    return (*this);
+Server& Server::operator=(const Server& assign) {
+    if (this != &assign) {
+        // Deep copy _user
+        if (_user) {
+            delete _user;
+        }
+        if (assign._user) {
+            _user = new User(*assign._user);
+        } else {
+            _user = NULL;
+        }
+
+        // Copy simple data members
+        _PortNumber = assign._PortNumber;
+        _ServerSocket = assign._ServerSocket;
+        _NumberOfPollfds = assign._NumberOfPollfds;
+        _maxfd = assign._maxfd;
+        _selectFd = assign._selectFd;
+        _ServerPassword = assign._ServerPassword;
+        _msgSendToClient = assign._msgSendToClient;
+        _clientAddr = assign._clientAddr;
+        _clientLen = assign._clientLen;
+
+        // Deep copy _clients map
+        for (std::map<int, User*>::const_iterator it = assign._clients.begin(); it != assign._clients.end(); ++it) {
+            _clients[it->first] = new User(*it->second);
+        }
+
+        // // Deep copy _commands map
+        // for (std::map<std::string, Command*>::const_iterator it = assign._commands.begin(); it != assign._commands.end(); ++it) {
+        //     _commands[it->first] = new Command(*it->second);
+        // }
+
+        // Deep copy _channels map
+        for (std::map<std::string, Channel*>::const_iterator it = assign._channels.begin(); it != assign._channels.end(); ++it) {
+            _channels[it->first] = new Channel(*it->second);
+        }
+
+        // Deep copy _clientToDelete vector
+        for (std::vector<User*>::const_iterator it = assign._clientToDelete.begin(); it != assign._clientToDelete.end(); ++it) {
+            _clientToDelete.push_back(new User(**it));
+        }
+    }
+    return *this;
 }
 
-Server::Server(char *port_str, char *password_str) : _NumberOfPollfds(0)
+Server::Server(char *port_str, char *password_str)
 {
     this->_PortNumber = parsePortNumber(port_str);
     this->_ServerPassword = parsePassword(password_str);
     _ServerSocket = create_server_socket(_PortNumber);
+    EventManager::start();
+    EventManager::addReadFd(_ServerSocket);
     _maxfd = _ServerSocket;
     _clientLen = sizeof(_clientAddr);
-    addToReadSet(_ServerSocket);
+
+    _commands["PASS"] = new Pass(*this, false);
+    _commands["NICK"] = new Nick(*this, false);
+    _commands["USER"] = new UserCmd(*this, false);
+    // _commands["QUIT"] = new Quit(*this, false);
+
+    _commands["PING"] = new Ping(*this);
+    _commands["PONG"] = new Pong(*this);
+    _commands["JOIN"] = new Join(*this);
+    _commands["KICK"] = new Kick(*this);
+    _commands["MODE"] = new Mode(*this);
+    _commands["INVITE"] = new Invite(*this);
+
+	_commands["PRIVMSG"] = new PrivMsg(*this);
+    _commands["TOPIC"] = new Topic(*this);
+    // _commands["CAP"] = new Cap(*this);
+    _commands["NOTICE"] = new Notice(*this);
+    _commands["WHO"] = new Who(*this);
+
 }
 
 int Server::parsePortNumber(char *port_str)
@@ -131,7 +191,9 @@ int Server::create_server_socket(int port)
 void Server::selectCall(fd_set &copy_of_master_read_set, fd_set &copy_of_master_write_set)
 {
     int accept_retval;
+    std::cout << "asads" << std::endl;
     _selectFd = select(_maxfd + 1, &copy_of_master_read_set, &copy_of_master_write_set, NULL, NULL);
+    std::cout << _selectFd << "asads" << std::endl;
     if (_selectFd == -1)
     {
         perror("select returned -1\n");
@@ -164,12 +226,59 @@ int Server::accept_create_new_client()
     return (client_socket);
 }
 
-void Server::handle_client_disconnection(int client_socket)
+
+void Server::checkForCloseCannel(void)
 {
-    close(client_socket);
-    _clients.erase(std::remove(_clients.begin(), _clients.end(), client_socket), _clients.end());
-    std::cout << "Client disconnected: " << client_socket << std::endl;
+    std::vector<std::string> closedFds; 
+    std::map<std::string, Channel *>::iterator it = _channels.begin();
+
+    for ( ; it != _channels.end(); ++it)
+    {
+        if ((it->second)->emptyClients())
+        {
+            closedFds.push_back(it->first);
+        }
+    }
+
+    for (size_t i = 0; i < closedFds.size(); ++i)
+    {
+        delete _channels[closedFds[i]];
+        _channels.erase(closedFds[i]);
+    }
 }
+
+void Server::delChannel(Channel *channel)
+{
+    if (channel)
+    {
+        this->_channels.erase(channel->_name);
+        delete channel;
+    }
+}
+
+
+Channel* Server::createChannel(const std::string& name, const std::string& pass, User &client)
+{
+    Channel *new_channel = new Channel(name, pass, &client);
+    this->addChannel(*new_channel);
+    return (new_channel);
+}
+
+void Server::addChannel(Channel &channel)
+{
+    if (this->_channels.insert(std::make_pair(channel._name, &channel)).second == false)
+    {
+        std::cout << "alredy exist\n";
+    }
+}
+
+
+// void Server::handle_client_disconnection(int client_socket)
+// {
+//     close(client_socket);
+//     _clients.erase(std::remove(_clients.begin(), _clients.end(), client_socket), _clients.end());
+//     std::cout << "Client disconnected: " << client_socket << std::endl;
+// }
 
 int Server::recv_part(int client_fd, fd_set &copy_of_master_read_set, User *user)
 {
@@ -196,16 +305,21 @@ int Server::recv_part(int client_fd, fd_set &copy_of_master_read_set, User *user
                 perror("recv");
             }
             close(client_fd);
-            _clients.erase(std::remove(_clients.begin(), _clients.end(), client_fd), _clients.end());
-            return 2;
+            _clients.erase(client_fd);
+            // _clients.erase(std::remove(_clients.begin(), _clients.end(), client_fd), _clients.end());
+            return 1;
         }
         else if (bytes_received > 0)
         {
             user->_buffer.append(buffer, bytes_received);
             if (user->_buffer.find('\n') != std::string::npos)
             {
-                std::cout << "_buffer = " << user->_buffer << std::endl;
-                user->splitAndAssign();
+                std::cout << "_buffer = " << "++" << user->_buffer << "++" << std::endl;
+                user->setInput(user->_buffer);
+                if (user->splitAndAssign())
+                {
+                    return 1;
+                }
                 if (user->getCommand().empty() == true)
                 {
                     user->_buffer.clear();
@@ -230,7 +344,7 @@ int Server::send_part(int client_fd, User *user)
 {
     user->sendMsgToBeSent();
     EventManager::delWriteFd(client_fd);
-    return 0;
+    return 1;
 }
 
 void Server::addClientToDelete(User *client)
@@ -257,22 +371,24 @@ void Server::to_delete_clients()
 }
 
 
-void Server::handle_client_data(fd_set &read_fds, fd_set &write_fds)
+int Server::handle_client_data(fd_set &read_fds, fd_set &write_fds)
 {
-    EventManager::start();
     EventManager::addReadFd(this->_ServerSocket);
     for (std::map<int, User *>::iterator it = this->_clients.begin(); _selectFd != 0 && it != this->_clients.end(); ++it)
     {
         if (FD_ISSET(it->first, &read_fds))
         {
-            recv_part(it->first, read_fds, it->second);
+            if (recv_part(it->first, read_fds, it->second) == 1)
+                return 1;
         }
         else if (FD_ISSET(it->first, &write_fds))
         {
-            send_part(it->first, it->second);
+            if (send_part(it->first, it->second) == 1)
+                return 1;
         }
         to_delete_clients();
     }
+    return 1;
 }
 
 void Server::print_channels()
@@ -286,13 +402,14 @@ void Server::print_channels()
 
 void Server::main_loop()
 {
-    fd_set read_fds = *EventManager::getReadFdSet(); // copy it
-    fd_set write_fds = *EventManager::getWriteFdSet(); // copy it
-
     while (true)
     {
+        fd_set read_fds = *EventManager::getReadFdSet(); // copy it
+        fd_set write_fds = *EventManager::getWriteFdSet(); // copy it
         selectCall(read_fds, write_fds);
-        handle_client_data(read_fds, write_fds);
+        std::cout << "SIZE AFTER SELECT" << std::endl;
+        if (handle_client_data(read_fds, write_fds) == 1)
+            continue;
     }
     close(_ServerSocket);
 }

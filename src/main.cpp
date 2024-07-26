@@ -7,6 +7,7 @@ int main(int ac, char **av)
         if(ac != 3)
             throw(std::runtime_error("Give only 3 arguments\n"));
         Server server(av[1], av[2]);
+        std::cout << "SIZE AFTER SELECTTTTTTTTTTTTTTT" << std::endl;
         server.main_loop();
         //parsing of arguments
     }

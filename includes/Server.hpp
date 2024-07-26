@@ -48,14 +48,10 @@ private:
     int create_server_socket(int port);
     int accept_create_new_client();
     void deleteClient(User *);
-    void handle_client_data(fd_set &read_fds, fd_set &write_fds);
-    void handle_client_disconnection(int clientSocket);
+    int handle_client_data(fd_set &read_fds, fd_set &write_fds);
+    // void handle_client_disconnection(int clientSocket);
     void selectCall(fd_set &, fd_set &);
     void print_channels();
-    void addToReadSet(int fd);
-    void addToWriteSet(int fd);
-    void delFromReadSet(int fd);
-    void delFromWriteSet(int fd);
     int recv_part(int client_fd, fd_set &copy_of_master_read_set, User *user);
     int send_part(int client_fd, User *user);
     void to_delete_clients();
@@ -67,6 +63,10 @@ public:
     Server &operator=(const Server &assign);
     User* getClient(const std::string& nick);
     Channel* getChannel(const std::string& name);
+    Channel* createChannel(const std::string& name, const std::string& pass, User &client);
+    void delChannel(Channel *channel);
+    void checkForCloseCannel(void);
+    void addChannel(Channel &channel);
     void main_loop();
     ~Server();
 };

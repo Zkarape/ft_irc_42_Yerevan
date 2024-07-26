@@ -99,11 +99,11 @@ class Pass : public Command
         void    execute(User& user, std::vector<std::string> args);
 };
 
-class User_cmd : public Command
+class UserCmd : public Command
 {
     public:
-        User_cmd(Server &srv);
-        ~User_cmd();
+        UserCmd(Server &srv, bool auth);
+        ~UserCmd();
 
         void    execute(User& user, std::vector<std::string> args);
 };
