@@ -58,22 +58,13 @@ Make
 Installation
 Clone the repository:
 
-bash
-Copy
-Edit
 git clone https://github.com/your_username/ft_irc.git
 cd ft_irc
 Compile the server:
 
-bash
-Copy
-Edit
 make
 Run the server:
 
-bash
-Copy
-Edit
 ./ircserv <port> <password>
 <port>: The port number to listen on (usually between 1024 and 65535).
 
@@ -81,9 +72,6 @@ Edit
 
 Example:
 
-bash
-Copy
-Edit
 ./ircserv 6667 my_secret_pass
 🧪 Testing
 You can connect to the server using any IRC client like:
@@ -98,24 +86,18 @@ Netcat (for basic manual testing)
 
 Example using nc:
 
-bash
-Copy
-Edit
 nc localhost 6667
 Commands you can try:
 
 pgsql
-Copy
-Edit
 PASS my_secret_pass
 NICK mynickname
 USER myusername 0 * :Real Name
 JOIN #general
 PRIVMSG #general :Hello everyone!
+
 🧱 Project Structure
 arduino
-Copy
-Edit
 ft_irc/
 ├── src/
 │   ├── main.cpp
@@ -127,6 +109,7 @@ ft_irc/
 │   └── (Header files)
 ├── Makefile
 └── README.md
+
 ✍️ Authors
 Zhenya Karapetyan - Zkarape
 
